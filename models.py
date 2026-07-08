@@ -50,8 +50,8 @@ class MediaItem(Base):
     status: Mapped[MediaStatus] = mapped_column(Enum(MediaStatus))
     rating: Mapped[float | None] = mapped_column()
     picture: Mapped[str | None] = mapped_column()
-    creation_date: Mapped[datetime] = mapped_column()
-    finish_date: Mapped[datetime] = mapped_column()
+    creation_date: Mapped[datetime | None] = mapped_column()
+    finish_date: Mapped[datetime | None] = mapped_column()
 
 # MEDIA TYPE CLASSES
 
@@ -60,7 +60,7 @@ class Book(Base):
     __tablename__ = 'book'
     id: Mapped[int] = mapped_column(primary_key=True)
     media_item_id: Mapped[int] = mapped_column(ForeignKey('media_item.id'))
-    book_type: Mapped[MediaType] = mapped_column(Enum(BookType))
+    book_type: Mapped[BookType] = mapped_column(Enum(BookType))
 
 # game class
 class Game(Base):
@@ -79,10 +79,12 @@ class Wrestling(Base):
     __tablename__ = 'wrestling'
     id: Mapped[int] = mapped_column(primary_key=True)
     media_item_id: Mapped[int] = mapped_column(ForeignKey('media_item.id'))
+    event: Mapped[str] = mapped_column()
 
 # Creator class. all types of creators will go here.
 class Creator (Base):
     __tablename__ = 'creator'
+    name: Mapped[str] = mapped_column()
     id: Mapped[int] = mapped_column(primary_key=True)
     creator_type: Mapped[CreatorType] = mapped_column(Enum(CreatorType))
 
@@ -93,7 +95,7 @@ class ProgressLog(Base):
     media_item_id: Mapped[int] = mapped_column(ForeignKey('media_item.id'))
     progress_time: Mapped[int] = mapped_column()
     date_of_progress: Mapped[datetime] = mapped_column()
-    notes: Mapped[str] = mapped_column()
+    notes: Mapped[str | None] = mapped_column()
 
 
 
