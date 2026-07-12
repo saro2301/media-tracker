@@ -36,9 +36,9 @@ class BookType(enum.Enum):
 
 # enum for the Creator types
 class CreatorType(enum.Enum):
-    AUTHOR ="author"
-    GAME_STUDIO ="game studio"
-    PROMOTION ="promotion"
+    AUTHOR = "author"
+    GAME_STUDIO = "game studio"
+    PROMOTION = "promotion"
     ARTIST = "artist"
 
 # media item class

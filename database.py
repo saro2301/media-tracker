@@ -1,4 +1,4 @@
-from models import Base, MediaItem, Book, Album, Game, Wrestling, Creator, CreatorType, ProgressLog
+from models import Base, MediaItem, Book, Album, Game, Wrestling, Creator, MediaCreator, ProgressLog
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
