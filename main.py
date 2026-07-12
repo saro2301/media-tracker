@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from database import get_db
 from schemas import Media
 from typing import Annotated
@@ -66,9 +66,20 @@ def create_media(media: Media, db: Annotated[Session, Depends(get_db)]):
 
     return new_media
 
-# get endpoint to retrieve info from the database.
+# get endpoint to retrieve ALL entries from the database.
 # NOTE: once external APIs are integrated, change to async.
-
 @app.get("/media/")
-def get_media(db: Session = Depends(get_db)):
+def get_all_media(db: Session = Depends(get_db)):
     return db.query(MediaItem).all()
+
+# get endpoint to retrieve ONE entry from the database.
+@app.get("/media/{id}")
+def get_one_media(id: int, db: Session = Depends(get_db)):
+    media = db.query(MediaItem).filter(MediaItem.id == id).first()
+
+    # NOTE: not completely necessary to handle ID not found case, as media must be made.
+    # won't hurt to do it! raise 404 not found.
+    if media is None:
+        raise HTTPException(status_code=404, detail="Media not found")
+    return media
+
