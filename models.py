@@ -82,11 +82,18 @@ class Wrestling(Base):
     event: Mapped[str] = mapped_column()
 
 # Creator class. all types of creators will go here.
-class Creator (Base):
+class Creator(Base):
     __tablename__ = 'creator'
     name: Mapped[str] = mapped_column()
     id: Mapped[int] = mapped_column(primary_key=True)
     creator_type: Mapped[CreatorType] = mapped_column(Enum(CreatorType))
+
+# MediaCreator class. all creators (can be more than one) will go here.
+class MediaCreator(Base):
+    __tablename__ = 'media_creator'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    media_item_id: Mapped[int] = mapped_column(ForeignKey('media_item.id'))
+    creator_id: Mapped[int] = mapped_column(ForeignKey('creator.id'))
 
 # Progress Log class. Class to keep track of media progress
 class ProgressLog(Base):
