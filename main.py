@@ -29,7 +29,7 @@ def create_media(media: Media, db: Annotated[Session, Depends(get_db)]):
 
     # add it to the session and commit
     db.add(new_media)
-    db.flush() 
+    db.flush()
 
     # if the media type is a book, add the book type.
     if media.type == MediaType.BOOK and media.book_type is not None:
@@ -65,3 +65,10 @@ def create_media(media: Media, db: Annotated[Session, Depends(get_db)]):
     db.refresh(new_media)
 
     return new_media
+
+# get endpoint to retrieve info from the database.
+# NOTE: once external APIs are integrated, change to async.
+
+@app.get("/media/")
+def get_media(db: Session = Depends(get_db)):
+    return db.query(MediaItem).all()
