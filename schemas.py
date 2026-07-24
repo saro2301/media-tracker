@@ -32,7 +32,15 @@ class Media(BaseModel):
 class MediaUpdate(BaseModel):
     rating: float | None = None
     picture: str | None = None
-    status: MediaStatus | None = None 
+    status: MediaStatus | None = None
+
+# progress log class to track how much media was consumed.
+# as creation date (date of logging) is already logged, only need time and notes.
+# time being MINUTES logged. notes are optional
+class ProgressLogData(BaseModel):
+    time: int
+    notes: str | None = None
+
 
 
 

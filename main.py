@@ -1,9 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException
 from database import get_db
-from schemas import Media, MediaUpdate
+from schemas import Media, MediaUpdate, ProgressLogData
 from typing import Annotated
 from sqlalchemy.orm import Session
-from models import MediaItem, MediaType, Book, Creator, MediaCreator
+from models import MediaItem, MediaType, Book, Creator, MediaCreator, ProgressLog
 from datetime import datetime
 
 app = FastAPI()
@@ -113,3 +113,28 @@ def delete_data(id: int, db: Annotated[Session, Depends(get_db)]):
     db.commit()
 
     return item
+
+# PROGRESS LOG ENDPOINTS
+
+# post endpoint to send media progress to the database.
+# REMINDER: only games and books can be loggable. albums and matches cannot be logged.
+@app.post("/media/{id}/log")
+def create_log_entry(id: int, log: ProgressLogData, db: Annotated[Session, Depends(get_db)]):
+    item = db.query(MediaItem).filter(MediaItem.id == id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Media not found")
+    if item.type == MediaType.BOOK or item.type == MediaType.GAME:
+        new_log = ProgressLog(
+            media_item_id=id,
+            progress_time=log.time,
+            notes=log.notes,
+            date_of_progress=datetime.now()
+        )
+        db.add(new_log)
+        db.commit()
+        db.refresh(new_log)
+        return new_log
+    else:
+        raise HTTPException(status_code=400, detail="Log entry not applicable for media type")
+
+
