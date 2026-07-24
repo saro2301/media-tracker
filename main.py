@@ -83,7 +83,7 @@ def get_one_media(id: int, db: Annotated[Session, Depends(get_db)]):
         raise HTTPException(status_code=404, detail="Media not found")
     return media
 
-# patch request to change certain fields in data.
+# patch endpoint to change certain fields in data.
 # editable: title, rating, status.
 @app.patch("/media/{id}")
 def update_media(id: int, media_update: MediaUpdate, db: Annotated[Session, Depends(get_db)]):
@@ -102,3 +102,14 @@ def update_media(id: int, media_update: MediaUpdate, db: Annotated[Session, Depe
     db.refresh(item)
     return item
 
+# delete endpoint to remove an entry entirely.
+@app.delete("/media/{id}")
+def delete_data(id: int, db: Annotated[Session, Depends(get_db)]):
+    item = db.query(MediaItem).filter(MediaItem.id == id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Media not found")
+
+    db.delete(item)
+    db.commit()
+
+    return item
