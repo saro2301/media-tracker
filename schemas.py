@@ -27,7 +27,12 @@ class Media(BaseModel):
     picture: str | None = None              # default as None, picture isn't necessary initially.
     finish_date: datetime | None = None     # default as None (finish date is TBD)
 
-
+# media item update class for patching (changing information)
+# editable: rating, image, status.
+class MediaUpdate(BaseModel):
+    rating: float | None = None
+    picture: str | None = None
+    status: MediaStatus | None = None 
 
 
 

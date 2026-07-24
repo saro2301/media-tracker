@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from database import get_db
-from schemas import Media
+from schemas import Media, MediaUpdate
 from typing import Annotated
 from sqlalchemy.orm import Session
 from models import MediaItem, MediaType, Book, Creator, MediaCreator
@@ -69,12 +69,12 @@ def create_media(media: Media, db: Annotated[Session, Depends(get_db)]):
 # get endpoint to retrieve ALL entries from the database.
 # NOTE: once external APIs are integrated, change to async.
 @app.get("/media/")
-def get_all_media(db: Session = Depends(get_db)):
+def get_all_media(db: Annotated[Session, Depends(get_db)]):
     return db.query(MediaItem).all()
 
 # get endpoint to retrieve ONE entry from the database.
 @app.get("/media/{id}")
-def get_one_media(id: int, db: Session = Depends(get_db)):
+def get_one_media(id: int, db: Annotated[Session, Depends(get_db)]):
     media = db.query(MediaItem).filter(MediaItem.id == id).first()
 
     # NOTE: not completely necessary to handle ID not found case, as media must be made.
@@ -82,4 +82,23 @@ def get_one_media(id: int, db: Session = Depends(get_db)):
     if media is None:
         raise HTTPException(status_code=404, detail="Media not found")
     return media
+
+# patch request to change certain fields in data.
+# editable: title, rating, status.
+@app.patch("/media/{id}")
+def update_media(id: int, media_update: MediaUpdate, db: Annotated[Session, Depends(get_db)]):
+    item = db.query(MediaItem).filter(MediaItem.id == id).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Media not found")
+
+    if media_update.rating is not None:
+        item.rating = media_update.rating
+    if media_update.status is not None:
+        item.status = media_update.status
+    if media_update.picture is not None:
+        item.picture = media_update.picture
+
+    db.commit()
+    db.refresh(item)
+    return item
 
