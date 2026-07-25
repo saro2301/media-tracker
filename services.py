@@ -1,0 +1,104 @@
+# Here lives all logic that isn't an endpoint, a schema, or a database model.
+
+from datetime import date, timedelta
+from models import Streak, ProgressLog, MediaItem, MediaType, MediaStatus
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+# streak recalculation logic:
+# first, need to check all categories for streak points.
+# book: query all books read today and see if we've exceeded 30 minutes. if so, add streak point.
+# game: query all games played today and see if we've exceeded 30 mins playtime. add streak point if so
+# album: query all albums marked completed today. add streak point if at least one was marked completed today
+# match: query all wrestling matches marked completed today. add streak point as needed
+
+def recalculate_streak(db: Session):
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+    streak_points = 0           # streak points current counter
+
+    # query books read today, and see if >= 30 mins exceeded
+    book_minutes = (db.query(func.sum(ProgressLog.progress_time))
+    .join(MediaItem, ProgressLog.media_item_id == MediaItem.id)
+    .filter(MediaItem.type == MediaType.BOOK, ProgressLog.date_of_progress == today)).scalar()
+
+    if (book_minutes or 0) >= 30:
+        streak_points += 1
+
+    # query games played today, same logic as book
+    game_minutes = (db.query(func.sum(ProgressLog.progress_time))
+    .join(MediaItem, ProgressLog.media_item_id == MediaItem.id)
+    .filter(MediaItem.type == MediaType.GAME, ProgressLog.date_of_progress == today)).scalar()
+
+    if (game_minutes or 0) >= 30:
+        streak_points += 1
+
+    # query albums listened to today, and see if >= 1 album completed
+    albums_completed = db.query(MediaItem).filter(MediaItem.type == MediaType.ALBUM,
+    MediaItem.status == MediaStatus.COMPLETED, MediaItem.finish_date == today).first()
+
+    if albums_completed is not None:
+        streak_points += 1
+
+    # query matches, same thing.
+    matches_completed = db.query(MediaItem).filter(MediaItem.type == MediaType.WRESTLING,
+    MediaItem.status == MediaStatus.COMPLETED, MediaItem.finish_date == today ).first()
+
+    if matches_completed is not None:
+        streak_points += 1
+
+
+    # STREAK LOGIC:
+    streak = db.query(Streak).filter(Streak.id == 1).first()
+
+    # first ever run, need to create the rows.
+    if streak is None:
+        streak = Streak(
+            current_streak=0,
+            longest_streak=0,
+            current_streak_start=None,
+            longest_streak_start=None,
+            current_streak_end=None,
+            longest_streak_end=None,
+        )
+        db.add(streak)
+
+    # if streak_points >= 2 (if there's something new to add to the streak)
+    if streak_points >= 2:
+        # if streak last updated today, don't change anything.
+        if streak.last_updated == today:
+            pass
+        # if streak last updated yesterday, increment streak counter and change last_updated to today.
+        elif streak.last_updated == yesterday:
+            streak.current_streak += 1
+            streak.last_updated = today
+        # if streak last updated WAS NOT yesterday, make streak counter 1, and change last_updated to today.
+        else:
+            streak.current_streak = 1
+            streak.current_streak_start = today
+            streak.last_updated = today
+
+        # if current streak is now bigger than the longest streak...
+        # longest streak is now equal to current streak,
+        # longest streak start is now equal to current streak start,
+        # and longest streak end is not equal to current streak end, which is today.
+        # then add streak to the db.
+        if streak.current_streak > streak.longest_streak:
+            streak.longest_streak = streak.current_streak
+            streak.longest_streak_start = streak.current_streak_start
+            streak.longest_streak_end = today
+    # if none apply, and if there is no streak at all, then our longest streak becomes zero.
+    else:
+        streak.longest_streak = 0
+
+    # NOTE: only commit here, as adding is just making the rows.
+    # this part of the function is to patch the existing streak rows,
+    # not to make new ones.
+    db.commit()
+
+    return streak
+
+    # TODO: have POST /media/{id}/log (for games and book streak point tallying) and PATCH /media/{id} (for wrestling and album streak tallying) call this function.
+
+
+

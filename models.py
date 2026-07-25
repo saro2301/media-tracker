@@ -2,7 +2,7 @@
 
 # import files as needed.
 import enum
-from datetime import datetime
+from datetime import datetime, date
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import Enum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
@@ -104,5 +104,22 @@ class ProgressLog(Base):
     date_of_progress: Mapped[datetime] = mapped_column()
     notes: Mapped[str | None] = mapped_column()
 
+# Streak class. Class to keep track of media consumption streaks (for motivation)
+# Again, need two or more streak points for the streak to be maintained. Criteria include:
+# Game: >= 30 minutes played
+# Book: >= 30 minutes read
+# Wrestling: >= 1 completed
+# Album: >= 1 completed
+# Reminder: each category is one streak point. Need at least two to keep the streak going.
+class Streak(Base):
+    __tablename__ = 'streak'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    current_streak: Mapped[int] = mapped_column()
+    current_streak_start: Mapped[date | None] = mapped_column()
+    current_streak_end: Mapped[date | None] = mapped_column()
+    longest_streak: Mapped[int] = mapped_column()
+    longest_streak_start: Mapped[date | None] = mapped_column()
+    longest_streak_end: Mapped[date | None] = mapped_column()
+    last_updated: Mapped[date | None] = mapped_column()
 
 
