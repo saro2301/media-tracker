@@ -3,8 +3,9 @@ from database import get_db
 from schemas import Media, MediaUpdate, ProgressLogData
 from typing import Annotated
 from sqlalchemy.orm import Session
-from models import MediaItem, MediaType, Book, Creator, MediaCreator, ProgressLog
-from datetime import datetime
+from models import MediaItem, MediaType, MediaStatus, Creator, MediaCreator, ProgressLog, Book
+from datetime import date
+from services import recalculate_streak
 
 app = FastAPI()
 
@@ -24,7 +25,7 @@ def create_media(media: Media, db: Annotated[Session, Depends(get_db)]):
         status=media.status,
         rating=media.rating,
         picture=media.picture,
-        creation_date=datetime.now()
+        creation_date=date.today(),
     )
 
     # add it to the session and commit
@@ -85,6 +86,7 @@ def get_one_media(id: int, db: Annotated[Session, Depends(get_db)]):
 
 # patch endpoint to change certain fields in data.
 # editable: title, rating, status.
+# if match or album is changed to completed, add it to streak points tally.
 @app.patch("/media/{id}")
 def update_media(id: int, media_update: MediaUpdate, db: Annotated[Session, Depends(get_db)]):
     item = db.query(MediaItem).filter(MediaItem.id == id).first()
@@ -98,8 +100,19 @@ def update_media(id: int, media_update: MediaUpdate, db: Annotated[Session, Depe
     if media_update.picture is not None:
         item.picture = media_update.picture
 
+    # account for wrestling match or music album being changed to completed.
+    streak = None
+    if media_update.status == MediaStatus.COMPLETED and item.type in (MediaType.WRESTLING, MediaType.ALBUM):
+        item.finish_date = date.today()
+        db.flush()
+        streak = recalculate_streak(db)
+
     db.commit()
     db.refresh(item)
+
+    # return streak as well if the change is part of a valid streak.
+    if streak:
+        return {"item": item, "current_streak": streak.current_streak}
     return item
 
 # delete endpoint to remove an entry entirely.
@@ -128,12 +141,19 @@ def create_log_entry(id: int, log: ProgressLogData, db: Annotated[Session, Depen
             media_item_id=id,
             progress_time=log.time,
             notes=log.notes,
-            date_of_progress=datetime.now()
+            date_of_progress=date.today()
         )
         db.add(new_log)
         db.commit()
+
+        # add the log towards streak point counting
+        streak = recalculate_streak(db)
         db.refresh(new_log)
-        return new_log
+
+        return {
+            "log": new_log,
+            "current_streak": streak.current_streak,
+        }
     else:
         raise HTTPException(status_code=400, detail="Log entry not applicable for media type")
 

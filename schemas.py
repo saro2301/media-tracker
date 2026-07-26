@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date
 from models import MediaType, MediaStatus, CreatorType, BookType
 from pydantic import BaseModel
 
@@ -25,7 +25,7 @@ class Media(BaseModel):
     status: MediaStatus = MediaStatus.BACKLOGGED
     rating: float | None = None             # default as None, rating isn't necessary initially.
     picture: str | None = None              # default as None, picture isn't necessary initially.
-    finish_date: datetime | None = None     # default as None (finish date is TBD)
+    finish_date: date | None = None     # default as None (finish date is TBD)
 
 # media item update class for patching (changing information)
 # editable: rating, image, status.

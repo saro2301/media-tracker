@@ -72,10 +72,12 @@ def recalculate_streak(db: Session):
         elif streak.last_updated == yesterday:
             streak.current_streak += 1
             streak.last_updated = today
+            streak.current_streak_end = today
         # if streak last updated WAS NOT yesterday, make streak counter 1, and change last_updated to today.
         else:
             streak.current_streak = 1
             streak.current_streak_start = today
+            streak.current_streak_end = today
             streak.last_updated = today
 
         # if current streak is now bigger than the longest streak...
@@ -87,9 +89,9 @@ def recalculate_streak(db: Session):
             streak.longest_streak = streak.current_streak
             streak.longest_streak_start = streak.current_streak_start
             streak.longest_streak_end = today
-    # if none apply, and if there is no streak at all, then our longest streak becomes zero.
+    # if none apply, and if there is no streak at all, then our current streak becomes zero.
     else:
-        streak.longest_streak = 0
+        streak.current_streak = 0
 
     # NOTE: only commit here, as adding is just making the rows.
     # this part of the function is to patch the existing streak rows,

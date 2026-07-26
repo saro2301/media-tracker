@@ -2,7 +2,7 @@
 
 # import files as needed.
 import enum
-from datetime import datetime, date
+from datetime import date
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import Enum, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
@@ -50,8 +50,8 @@ class MediaItem(Base):
     status: Mapped[MediaStatus] = mapped_column(Enum(MediaStatus))
     rating: Mapped[float | None] = mapped_column()
     picture: Mapped[str | None] = mapped_column()
-    creation_date: Mapped[datetime | None] = mapped_column()
-    finish_date: Mapped[datetime | None] = mapped_column()
+    creation_date: Mapped[date | None] = mapped_column()
+    finish_date: Mapped[date | None] = mapped_column()
 
 # MEDIA TYPE CLASSES
 
@@ -101,7 +101,7 @@ class ProgressLog(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     media_item_id: Mapped[int] = mapped_column(ForeignKey('media_item.id'))
     progress_time: Mapped[int] = mapped_column()
-    date_of_progress: Mapped[datetime] = mapped_column()
+    date_of_progress: Mapped[date] = mapped_column()
     notes: Mapped[str | None] = mapped_column()
 
 # Streak class. Class to keep track of media consumption streaks (for motivation)
