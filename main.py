@@ -1,11 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException
 from database import get_db
-from schemas import Media, MediaUpdate, ProgressLogData
+from schemas import Media, MediaUpdate, ProgressLogData, UserCreation, UserLogin
 from typing import Annotated
 from sqlalchemy.orm import Session
-from models import MediaItem, MediaType, MediaStatus, Creator, MediaCreator, ProgressLog, Book
-from datetime import date
-from services import recalculate_streak
+from services import recalculate_streak, hash_password, create_access_token
+from models import MediaItem, MediaType, MediaStatus, Creator, Book, User
+import bcrypt
 
 app = FastAPI()
 
@@ -156,5 +156,38 @@ def create_log_entry(id: int, log: ProgressLogData, db: Annotated[Session, Depen
         }
     else:
         raise HTTPException(status_code=400, detail="Log entry not applicable for media type")
+
+# AUTHENTICATION ENDPOINTS
+
+# POST endpoint to create a user.
+@app.post("/register")
+def create_user(user: UserCreation, db: Annotated[Session, Depends(get_db)]):
+    hashed_password = hash_password(user.password)
+    new_user = User(
+        username=user.username,
+        email=user.email,
+        password_hash=hashed_password
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return {"id": new_user.id, "username": new_user.username, "email": new_user.email}
+
+# POST endpoint to log in (sending login data to the server)
+@app.post("/login")
+def user_login(login_data: UserLogin, db: Annotated[Session, Depends(get_db)]):
+    # find the user by username. if username doesn't exist, return error.
+    user = db.query(User).filter(User.username == login_data.username).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # create JWT token if password is valid.
+    if bcrypt.checkpw(login_data.password.encode('utf-8'), user.password_hash.encode('utf-8')):
+        return create_access_token({"sub" : str(user.id)})
+    # if not valid, raise passowrd error (as username is valid)
+    else:
+        raise HTTPException(status_code=401, detail="Incorrect password")
+
+
 
 

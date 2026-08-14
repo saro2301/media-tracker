@@ -122,4 +122,12 @@ class Streak(Base):
     longest_streak_end: Mapped[date | None] = mapped_column()
     last_updated: Mapped[date | None] = mapped_column()
 
+# User class for user model. Needed for authentication (who are you?).
+# Needs an id, username, email, password (which will be hashed)
+class User(Base):
+    __tablename__ = 'user'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column()
+    email: Mapped[str] = mapped_column()
+    password_hash: Mapped[str] = mapped_column()
 

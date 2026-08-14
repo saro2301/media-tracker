@@ -41,6 +41,15 @@ class ProgressLogData(BaseModel):
     time: int
     notes: str | None = None
 
+# user create class to create a user.
+class UserCreation(BaseModel):
+    email: str
+    username: str
+    password: str
 
+# login class that holds info user needs to log in.
+class UserLogin(BaseModel):
+    username: str
+    password: str
 
 

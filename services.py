@@ -1,9 +1,24 @@
 # Here lives all logic that isn't an endpoint, a schema, or a database model.
 
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
+from dotenv import load_dotenv
 from models import Streak, ProgressLog, MediaItem, MediaType, MediaStatus
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from jose import jwt
+import bcrypt, os
+
+# JWT ACCESS METHOD
+load_dotenv()
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = "HS256"
+
+# placebo: 30 minutes per session. data = user id
+def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=30)):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + expires_delta
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 # streak recalculation logic:
 # first, need to check all categories for streak points.
@@ -100,7 +115,10 @@ def recalculate_streak(db: Session):
 
     return streak
 
-    # TODO: have POST /media/{id}/log (for games and book streak point tallying) and PATCH /media/{id} (for wrestling and album streak tallying) call this function.
+# function to hash password. going to be using bcrypt as it's lighter.
+def hash_password(password: str) -> str:
+    hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+    return hashed_password.decode("utf-8")
 
 
 
