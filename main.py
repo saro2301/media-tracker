@@ -4,8 +4,9 @@ from schemas import Media, MediaUpdate, ProgressLogData, UserCreation, UserLogin
 from typing import Annotated
 from sqlalchemy.orm import Session
 from services import recalculate_streak, hash_password, create_access_token, get_current_user
-from models import MediaItem, MediaType, MediaStatus, Creator, Book, User
+from models import MediaItem, MediaType, MediaStatus, Creator, Book, User, ProgressLog
 import bcrypt
+from datetime import date
 
 app = FastAPI()
 
@@ -16,7 +17,7 @@ def read_root():
 # post endpoint to create a media item by sending the info.
 # NOTE: once external APIs are integrated, change to async.
 @app.post("/media/")
-def create_media(media: Media, db: Annotated[Session, Depends(get_db)]):
+def create_media(media: Media, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
 
     # NOTE: media_dict (the Pydantic schema "Media" has fields NOT in MediaItem. unpacking manually, just to be safe.)
     new_media = MediaItem(
@@ -75,7 +76,7 @@ def get_all_media(db: Annotated[Session, Depends(get_db)], current_user: Annotat
 
 # get endpoint to retrieve ONE entry from the database.
 @app.get("/media/{id}")
-def get_one_media(id: int, db: Annotated[Session, Depends(get_db)]):
+def get_one_media(id: int, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
     media = db.query(MediaItem).filter(MediaItem.id == id).first()
 
     # NOTE: not completely necessary to handle ID not found case, as media must be made.
@@ -88,7 +89,7 @@ def get_one_media(id: int, db: Annotated[Session, Depends(get_db)]):
 # editable: title, rating, status.
 # if match or album is changed to completed, add it to streak points tally.
 @app.patch("/media/{id}")
-def update_media(id: int, media_update: MediaUpdate, db: Annotated[Session, Depends(get_db)]):
+def update_media(id: int, media_update: MediaUpdate, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
     item = db.query(MediaItem).filter(MediaItem.id == id).first()
     if item is None:
         raise HTTPException(status_code=404, detail="Media not found")
@@ -117,7 +118,7 @@ def update_media(id: int, media_update: MediaUpdate, db: Annotated[Session, Depe
 
 # delete endpoint to remove an entry entirely.
 @app.delete("/media/{id}")
-def delete_data(id: int, db: Annotated[Session, Depends(get_db)]):
+def delete_data(id: int, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
     item = db.query(MediaItem).filter(MediaItem.id == id).first()
     if item is None:
         raise HTTPException(status_code=404, detail="Media not found")
@@ -132,7 +133,7 @@ def delete_data(id: int, db: Annotated[Session, Depends(get_db)]):
 # post endpoint to send media progress to the database.
 # REMINDER: only games and books can be loggable. albums and matches cannot be logged.
 @app.post("/media/{id}/log")
-def create_log_entry(id: int, log: ProgressLogData, db: Annotated[Session, Depends(get_db)]):
+def create_log_entry(id: int, log: ProgressLogData, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
     item = db.query(MediaItem).filter(MediaItem.id == id).first()
     if item is None:
         raise HTTPException(status_code=404, detail="Media not found")
