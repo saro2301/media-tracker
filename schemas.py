@@ -2,6 +2,7 @@ from datetime import date
 from models import MediaType, MediaStatus, CreatorType, BookType
 from pydantic import BaseModel
 
+
 # creators class, dependent on media type
 class CreatorData(BaseModel):
     name: str

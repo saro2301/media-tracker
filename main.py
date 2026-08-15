@@ -3,7 +3,7 @@ from database import get_db
 from schemas import Media, MediaUpdate, ProgressLogData, UserCreation, UserLogin
 from typing import Annotated
 from sqlalchemy.orm import Session
-from services import recalculate_streak, hash_password, create_access_token
+from services import recalculate_streak, hash_password, create_access_token, get_current_user
 from models import MediaItem, MediaType, MediaStatus, Creator, Book, User
 import bcrypt
 
@@ -70,7 +70,7 @@ def create_media(media: Media, db: Annotated[Session, Depends(get_db)]):
 # get endpoint to retrieve ALL entries from the database.
 # NOTE: once external APIs are integrated, change to async.
 @app.get("/media/")
-def get_all_media(db: Annotated[Session, Depends(get_db)]):
+def get_all_media(db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
     return db.query(MediaItem).all()
 
 # get endpoint to retrieve ONE entry from the database.
@@ -187,6 +187,8 @@ def user_login(login_data: UserLogin, db: Annotated[Session, Depends(get_db)]):
     # if not valid, raise passowrd error (as username is valid)
     else:
         raise HTTPException(status_code=401, detail="Incorrect password")
+
+
 
 
 

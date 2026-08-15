@@ -2,23 +2,48 @@
 
 from datetime import date, timedelta, datetime
 from dotenv import load_dotenv
-from models import Streak, ProgressLog, MediaItem, MediaType, MediaStatus
+from models import Streak, ProgressLog, MediaItem, MediaType, MediaStatus, User
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from jose import jwt
+from typing import Annotated
+from jose import jwt, JWTError
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import bcrypt, os
+from database import get_db
 
 # JWT ACCESS METHOD
 load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 
-# placebo: 30 minutes per session. data = user id
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")  # "point people to this url to get their token/access"
+
+# create token method! placebo: 30 minutes per session. data = user id
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=30)):
     to_encode = data.copy()
     expire = datetime.utcnow() + expires_delta
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+# get current user method. doing the inverse of creating the token. REMEMBER: access information is user ID, not username!
+def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Annotated[Session, Depends(get_db)]):
+    # try/except: is the token itself malformed or expired? is it cryptographically legitimate?
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=ALGORITHM)
+        user_id: str = payload.get("sub")
+        # proper token, but does "sub" include what is expected? did i get what i wanted out of it?
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Could not validate credentials")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+    # does the user exist at all?
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return user
 
 # streak recalculation logic:
 # first, need to check all categories for streak points.
