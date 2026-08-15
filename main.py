@@ -4,7 +4,7 @@ from schemas import Media, MediaUpdate, ProgressLogData, UserCreation, UserLogin
 from typing import Annotated
 from sqlalchemy.orm import Session
 from services import recalculate_streak, hash_password, create_access_token, get_current_user
-from models import MediaItem, MediaType, MediaStatus, Creator, Book, User, ProgressLog
+from models import MediaItem, MediaType, MediaStatus, Creator, Book, User, ProgressLog, Streak
 import bcrypt
 from datetime import date
 
@@ -157,6 +157,32 @@ def create_log_entry(id: int, log: ProgressLogData, db: Annotated[Session, Depen
         }
     else:
         raise HTTPException(status_code=400, detail="Log entry not applicable for media type")
+
+# GET endpoint to query all progress logs for a certain media.
+# USE: when on a media's profile, user should be able to see all of their progress logs.
+@app.get("/media/{id}/logs")
+def get_media_logs(id: int, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
+    # query for the media itself first
+    item = db.query(MediaItem).filter(MediaItem.id == id).first()
+
+    # if doesn't exist, 404
+    if item is None:
+        raise HTTPException(status_code=404, detail="Media not found")
+
+    # query the media's logs, and return them.
+    logs = db.query(ProgressLog).filter(ProgressLog.media_item_id == id).all()
+    return logs
+
+# GET endpoint to query current streak information.
+# includes current streak (plus current streak start/end) and longest streak (plus start/end)
+@app.get("/streak")
+def get_streak(db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
+    # query for streak
+    streak = db.query(Streak).filter(Streak.id == 1).first()
+    if streak is None:
+        raise HTTPException(status_code=404, detail="No streak data yet")
+    return streak
+
 
 # AUTHENTICATION ENDPOINTS
 
