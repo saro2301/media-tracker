@@ -9,7 +9,7 @@ from typing import Annotated
 from jose import jwt, JWTError
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-import bcrypt, os
+import bcrypt, os, httpx
 from database import get_db
 
 # JWT ACCESS METHOD
@@ -145,5 +145,42 @@ def hash_password(password: str) -> str:
     hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
     return hashed_password.decode("utf-8")
 
+# MUSICBRAINZ API ALBUM SEARCH FUNCTION
+# The goal of MusicBrainz API with this app is to:
+# 1. give me experience working with external API's, JSONs and file parsing (very transferrable skill)
+# 2. make it easier for user to create album medias.
+# search album function, this uses MusicBrainz API to search albums.
 
+def search_album(album: str, artist: str | None = None):
+    # query album that is needed.
+    search_query = album
+    # if we plan on also searching using an artist, search using both.
+    if artist:
+        search_query = f'{album} AND artist:"{artist}"'
+
+    # get the album itself that is being searched.
+    response = httpx.get(
+        "https://musicbrainz.org/ws/2/release-group/",
+        params={"query": search_query, "fmt": "json"},         # query is the album being searched, JSON format.
+        headers={"User-Agent": "MediaTracker/1.0 (samrod2301@gmail.com)"}
+    )
+    data = response.json()
+
+    # now, make a list of what the result is going to consist of
+    # we need a title, artist, MusicBrainz ID (for convenience) and a score
+    # the score being measured on a scale of 1-100, how accurate is the album we want?
+    results = []
+
+    for releases in data["release-groups"]:
+        results.append({
+            "title": releases["title"],
+            "artist": releases["artist-credit"][0]["name"], # element 0 as the artist name is usually the creator we care most about.
+            "mbid": releases["id"],
+            "score": releases["score"]
+        })
+    results.sort(key=lambda r: r["score"], reverse=True)
+    return results
+
+# TODO: just in case, the artists we care about could be more than one. IDK how MusicBrainz formats collab albums,
+# but we have to prepare on whether or not we might need to get more than one artist. more than just the 0 element.
 

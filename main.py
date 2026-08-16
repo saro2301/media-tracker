@@ -3,7 +3,7 @@ from database import get_db
 from schemas import Media, MediaUpdate, ProgressLogData, UserCreation, UserLogin
 from typing import Annotated
 from sqlalchemy.orm import Session
-from services import recalculate_streak, hash_password, create_access_token, get_current_user
+from services import recalculate_streak, hash_password, create_access_token, get_current_user, search_album
 from models import MediaItem, MediaType, MediaStatus, Creator, Book, User, ProgressLog, Streak
 import bcrypt
 from datetime import date
@@ -215,7 +215,10 @@ def user_login(login_data: UserLogin, db: Annotated[Session, Depends(get_db)]):
     else:
         raise HTTPException(status_code=401, detail="Incorrect password")
 
-
+# EXTERNAL API ENDPOINTS
+@app.get("/search/album")
+def search_album_route(album: str, artist: str | None = None):
+    return search_album(album, artist)
 
 
 
