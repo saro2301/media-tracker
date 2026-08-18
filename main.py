@@ -4,7 +4,7 @@ from schemas import Media, MediaUpdate, ProgressLogData, UserCreation, UserLogin
 from typing import Annotated
 from sqlalchemy.orm import Session
 from services import recalculate_streak, hash_password, create_access_token, get_current_user, search_album
-from models import MediaItem, MediaType, MediaStatus, Creator, Book, User, ProgressLog, Streak
+from models import MediaItem, MediaType, MediaStatus, Creator, MediaCreator, User, ProgressLog, Streak, Book
 import bcrypt
 from datetime import date
 
@@ -211,7 +211,7 @@ def user_login(login_data: UserLogin, db: Annotated[Session, Depends(get_db)]):
     # create JWT token if password is valid.
     if bcrypt.checkpw(login_data.password.encode('utf-8'), user.password_hash.encode('utf-8')):
         return create_access_token({"sub" : str(user.id)})
-    # if not valid, raise passowrd error (as username is valid)
+    # if not valid, raise password error (as username is valid)
     else:
         raise HTTPException(status_code=401, detail="Incorrect password")
 

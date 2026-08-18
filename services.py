@@ -1,6 +1,6 @@
 # Here lives all logic that isn't an endpoint, a schema, or a database model.
 
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta, datetime, timezone
 from dotenv import load_dotenv
 from models import Streak, ProgressLog, MediaItem, MediaType, MediaStatus, User
 from sqlalchemy.orm import Session
@@ -22,7 +22,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")  # "point people to this 
 # create token method! placebo: 30 minutes per session. data = user id
 def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=30)):
     to_encode = data.copy()
-    expire = datetime.utcnow() + expires_delta
+    expire = datetime.now(timezone.utc) + expires_delta
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -143,7 +143,7 @@ def recalculate_streak(db: Session):
 # function to hash password. going to be using bcrypt as it's lighter.
 def hash_password(password: str) -> str:
     hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
-    return hashed_password.decode("utf-8")
+    return hashed_password.decode("utf-8")      # NOTE: not decoding the password, decoding the HASH (for DB storage). bytes to string
 
 # MUSICBRAINZ API ALBUM SEARCH FUNCTION
 # The goal of MusicBrainz API with this app is to:
@@ -164,6 +164,7 @@ def search_album(album: str, artist: str | None = None):
         params={"query": search_query, "fmt": "json"},         # query is the album being searched, JSON format.
         headers={"User-Agent": "MediaTracker/1.0 (samrod2301@gmail.com)"}
     )
+
     data = response.json()
 
     # now, make a list of what the result is going to consist of
