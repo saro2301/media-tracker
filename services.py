@@ -171,16 +171,20 @@ def search_album(album: str, artist: str | None = None):
     # the score being measured on a scale of 1-100, how accurate is the album we want?
     results = []
 
+    # in case of an internal server error (likely MusicBrainz's rate limit), add a check.
+    if "release-groups" not in data:
+        return []
+
     for releases in data["release-groups"]:
+        # to account for multiple artists (e.g. Freddie Gibbs AND Madlib in Pinata), have to treat as a list.
+        artists = [credit["name"] for credit in releases["artist-credit"]]
+
         results.append({
             "title": releases["title"],
-            "artist": releases["artist-credit"][0]["name"], # element 0 as the artist name is usually the creator we care most about.
+            "artist": artists, # element 0 as the artist name is usually the creator we care most about.
             "mbid": releases["id"],
             "score": releases["score"]
         })
     results.sort(key=lambda r: r["score"], reverse=True)
     return results
-
-# TODO: just in case, the artists we care about could be more than one. IDK how MusicBrainz formats collab albums,
-# but we have to prepare on whether or not we might need to get more than one artist. more than just the 0 element.
 
