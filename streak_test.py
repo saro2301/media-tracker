@@ -36,7 +36,7 @@ def test_book_game_same_days(db):
     db.add(game)
     db.flush()
 
-    # add 30-minute streaks for both of them (30 minutes+ for each is one streak point for each.
+    # add 30-minute streaks for both of them (30 minutes+ for each is one streak point for each).
     db.add(ProgressLog(media_item_id=book.id, progress_time=30, date_of_progress=date.today()))
     db.add(ProgressLog(media_item_id=game.id, progress_time=30, date_of_progress=date.today()))
     db.commit()
@@ -47,4 +47,16 @@ def test_book_game_same_days(db):
     # assert expected outcome.
     assert streak.current_streak == 1
 
-# SECOND TEST: 
+# SECOND TEST: ALBUM AND WRESTLING MATCH ON THE SAME DAY
+# criteria for each to get one streak point: must be completed today.
+def test_streak_album_and_wrestling_same_day(db):
+    album = MediaItem(title="Test Album", type=MediaType.ALBUM, status=MediaStatus.COMPLETED, finish_date=date.today())
+    match = MediaItem(title="Test Match", type=MediaType.WRESTLING, status=MediaStatus.COMPLETED, finish_date=date.today())
+    db.add(album)
+    db.add(match)
+    db.commit()
+
+    streak = recalculate_streak(db)
+
+    assert streak.current_streak == 1
+
