@@ -20,8 +20,8 @@ class Media(BaseModel):
     title: str
     type: MediaType
     creators: list[CreatorData] = []        # can have multiple creators, so it's a list of creators.
-    book_type: BookData | None              # many book types, if not a book then None.
-    wrestling_data: WrestlingData | None    # to store event data.
+    book_type: BookData | None = None             # many book types, if not a book then None.
+    wrestling_data: WrestlingData | None = None   # to store event data.
     status: MediaStatus = MediaStatus.BACKLOGGED
     rating: float | None = None             # default as None, rating isn't necessary initially.
     picture: str | None = None              # default as None, picture isn't necessary initially.

@@ -4,7 +4,7 @@ from schemas import Media, MediaUpdate, ProgressLogData, UserCreation, UserLogin
 from typing import Annotated
 from sqlalchemy.orm import Session
 from services import recalculate_streak, hash_password, create_access_token, get_current_user, search_album
-from models import MediaItem, MediaType, MediaStatus, Creator, MediaCreator, User, ProgressLog, Streak, Book
+from models import MediaItem, MediaType, MediaStatus, Creator, MediaCreator, User, ProgressLog, Streak, Book, Wrestling
 import bcrypt
 from datetime import date
 
@@ -40,6 +40,16 @@ def create_media(media: Media, db: Annotated[Session, Depends(get_db)], current_
             book_type=media.book_type.book_type     # this book type belongs to this book
         )
         db.add(new_book)
+
+    # if the media type is a wrestling match, add the event name.
+    if media.type == MediaType.WRESTLING and media.wrestling_data is not None:
+        new_wrestling = Wrestling(
+            media_item_id=new_media.id,
+            event=media.wrestling_data.event
+        )
+        db.add(new_wrestling)
+
+    
 
     # add all creators.
     for creator in media.creators:

@@ -62,18 +62,6 @@ class Book(Base):
     media_item_id: Mapped[int] = mapped_column(ForeignKey('media_item.id'))
     book_type: Mapped[BookType] = mapped_column(Enum(BookType))
 
-# game class
-class Game(Base):
-    __tablename__ = 'game'
-    id: Mapped[int] = mapped_column(primary_key=True)
-    media_item_id: Mapped[int] = mapped_column(ForeignKey('media_item.id'))
-
-# album class
-class Album(Base):
-    __tablename__ = 'album'
-    id: Mapped[int] = mapped_column(primary_key=True)
-    media_item_id: Mapped[int] = mapped_column(ForeignKey('media_item.id'))
-
 # wrestling match class
 class Wrestling(Base):
     __tablename__ = 'wrestling'
