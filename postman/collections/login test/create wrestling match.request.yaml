@@ -22,5 +22,5 @@ body:
 auth:
   type: bearer
   credentials:
-    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzg3MTk3MTA1fQ.b-t1bmXOBX1Ps1h0ziQ9heu_wyRM3n9bTnCRy7SvLA8
+    token: "{{token}}"
 order: 4095532252381226

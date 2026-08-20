@@ -1,4 +1,5 @@
 $kind: http-request
+name: login1
 url: http://127.0.0.1:8000/login
 method: POST
 body:
@@ -8,4 +9,12 @@ body:
         "username": "you",
         "password": "test123"
     }
+auth:
+  type: bearer
+scripts:
+  - type: afterResponse
+    code: |-
+      const data = pm.response.json();
+      pm.environment.set("token", data);
+    language: text/javascript
 order: 1787194346716

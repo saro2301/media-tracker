@@ -27,6 +27,7 @@ def create_media(media: Media, db: Annotated[Session, Depends(get_db)], current_
         rating=media.rating,
         picture=media.picture,
         creation_date=date.today(),
+        finish_date=media.finish_date,
     )
 
     # add it to the session and commit
