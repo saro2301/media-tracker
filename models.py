@@ -1,4 +1,4 @@
-# File that holds all database models.
+# File that holds all SQLAlchemy database models.
 
 # import files as needed.
 import enum

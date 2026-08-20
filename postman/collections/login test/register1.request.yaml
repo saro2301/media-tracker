@@ -1,0 +1,12 @@
+$kind: http-request
+url: http://127.0.0.1:8000/register
+method: POST
+body:
+  type: json
+  content: |-
+    {
+      "email": "you@test.com",
+      "username": "you",
+      "password": "test123"
+    }
+order: 3352492475724793

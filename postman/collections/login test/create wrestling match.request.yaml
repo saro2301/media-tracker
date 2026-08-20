@@ -1,0 +1,26 @@
+$kind: http-request
+name: create wrestling match
+description: ""
+url: http://127.0.0.1:8000/media
+method: POST
+body:
+  type: json
+  content: |-
+    {
+      "title": "Kazuchika Okada vs Hiroshi Tanahashi - Invasion Attack 2013",
+      "type": "wrestling",
+      "creators": [
+        {
+          "name": "New Japan Pro Wrestling",
+          "creator_type": "promotion"
+        }
+      ],
+      "wrestling_data": {
+        "event": "Invasion Attack 2013"
+      }
+    }
+auth:
+  type: bearer
+  credentials:
+    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzg3MTk3MTA1fQ.b-t1bmXOBX1Ps1h0ziQ9heu_wyRM3n9bTnCRy7SvLA8
+order: 4095532252381226

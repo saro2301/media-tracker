@@ -1,6 +1,8 @@
+# Here live the Pydantic schemas.
+
 from datetime import date
 from models import MediaType, MediaStatus, CreatorType, BookType
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 # creators class, dependent on media type
 class CreatorData(BaseModel):
@@ -27,12 +29,27 @@ class Media(BaseModel):
     picture: str | None = None              # default as None, picture isn't necessary initially.
     finish_date: date | None = None     # default as None (finish date is TBD)
 
+    # We need a finish date validator. Why? When something is completed, we need a finish date no matter what.
+    @model_validator(mode="after")
+    def finish_date_validator(self):
+        if self.status == MediaStatus.COMPLETED and self.finish_date is None:
+            raise ValueError("finish date is required when marking something completed")
+        return self
+
 # media item update class for patching (changing information)
 # editable: rating, image, status.
 class MediaUpdate(BaseModel):
     rating: float | None = None
     picture: str | None = None
     status: MediaStatus | None = None
+    finish_date: date | None = None
+
+    # same finish date validator
+    @model_validator(mode="after")
+    def finish_date_validator(self):
+        if self.status == MediaStatus.COMPLETED and self.finish_date is None:
+            raise ValueError("finish date is required when marking something completed")
+        return self
 
 # progress log class to track how much media was consumed.
 # as creation date (date of logging) is already logged, only need time and notes.

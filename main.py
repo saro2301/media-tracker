@@ -96,7 +96,7 @@ def get_one_media(id: int, db: Annotated[Session, Depends(get_db)], current_user
     return media
 
 # patch endpoint to change certain fields in data.
-# editable: title, rating, status.
+# editable: title, rating, status, finish date.
 # if match or album is changed to completed, add it to streak points tally.
 @app.patch("/media/{id}")
 def update_media(id: int, media_update: MediaUpdate, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
@@ -113,10 +113,12 @@ def update_media(id: int, media_update: MediaUpdate, db: Annotated[Session, Depe
 
     # account for wrestling match or music album being changed to completed.
     streak = None
-    if media_update.status == MediaStatus.COMPLETED and item.type in (MediaType.WRESTLING, MediaType.ALBUM):
-        item.finish_date = date.today()
+    if media_update.status == MediaStatus.COMPLETED:
+        item.finish_date = media_update.finish_date
         db.flush()
-        streak = recalculate_streak(db)
+
+        if item.type in (MediaType.WRESTLING, MediaType.ALBUM):
+            streak = recalculate_streak(db)
 
     db.commit()
     db.refresh(item)
