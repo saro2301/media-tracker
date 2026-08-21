@@ -45,6 +45,7 @@ class CreatorType(enum.Enum):
 class MediaItem(Base):
     __tablename__ = 'media_item'
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('user.id'))
     title: Mapped[str] = mapped_column()
     type: Mapped[MediaType] = mapped_column(Enum(MediaType))
     status: Mapped[MediaStatus] = mapped_column(Enum(MediaStatus))
@@ -102,6 +103,7 @@ class ProgressLog(Base):
 class Streak(Base):
     __tablename__ = 'streak'
     id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('user.id'))
     current_streak: Mapped[int] = mapped_column()
     current_streak_start: Mapped[date | None] = mapped_column()
     current_streak_end: Mapped[date | None] = mapped_column()

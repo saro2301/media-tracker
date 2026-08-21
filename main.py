@@ -22,6 +22,7 @@ def create_media(media: Media, db: Annotated[Session, Depends(get_db)], current_
     # NOTE: media_dict (the Pydantic schema "Media" has fields NOT in MediaItem. unpacking manually, just to be safe.)
     new_media = MediaItem(
         title=media.title,
+        user_id=current_user.id,
         type=media.type,
         status=media.status,
         rating=media.rating,
@@ -83,15 +84,14 @@ def create_media(media: Media, db: Annotated[Session, Depends(get_db)], current_
 # NOTE: once external APIs are integrated, change to async.
 @app.get("/media/")
 def get_all_media(db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
-    return db.query(MediaItem).all()
+    return db.query(MediaItem).filter(MediaItem.user_id == current_user.id).all()
 
 # get endpoint to retrieve ONE entry from the database.
 @app.get("/media/{id}")
 def get_one_media(id: int, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
-    media = db.query(MediaItem).filter(MediaItem.id == id).first()
+    media = db.query(MediaItem).filter(MediaItem.id == id, MediaItem.user_id == current_user.id).first()
 
-    # NOTE: not completely necessary to handle ID not found case, as media must be made.
-    # won't hurt to do it! raise 404 not found.
+    # if media not found (also if it doesn't belong to the user), raise error code.
     if media is None:
         raise HTTPException(status_code=404, detail="Media not found")
     return media
@@ -101,7 +101,7 @@ def get_one_media(id: int, db: Annotated[Session, Depends(get_db)], current_user
 # if match or album is changed to completed, add it to streak points tally.
 @app.patch("/media/{id}")
 def update_media(id: int, media_update: MediaUpdate, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
-    item = db.query(MediaItem).filter(MediaItem.id == id).first()
+    item = db.query(MediaItem).filter(MediaItem.id == id, MediaItem.user_id == current_user.id).first()
     if item is None:
         raise HTTPException(status_code=404, detail="Media not found")
 
@@ -119,7 +119,7 @@ def update_media(id: int, media_update: MediaUpdate, db: Annotated[Session, Depe
         db.flush()
 
         if item.type in (MediaType.WRESTLING, MediaType.ALBUM):
-            streak = recalculate_streak(db)
+            streak = recalculate_streak(db, current_user)
 
     db.commit()
     db.refresh(item)
@@ -132,7 +132,7 @@ def update_media(id: int, media_update: MediaUpdate, db: Annotated[Session, Depe
 # delete endpoint to remove an entry entirely.
 @app.delete("/media/{id}")
 def delete_data(id: int, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
-    item = db.query(MediaItem).filter(MediaItem.id == id).first()
+    item = db.query(MediaItem).filter(MediaItem.id == id, MediaItem.user_id == current_user.id).first()
     if item is None:
         raise HTTPException(status_code=404, detail="Media not found")
 
@@ -147,12 +147,13 @@ def delete_data(id: int, db: Annotated[Session, Depends(get_db)], current_user: 
 # REMINDER: only games and books can be loggable. albums and matches cannot be logged.
 @app.post("/media/{id}/log")
 def create_log_entry(id: int, log: ProgressLogData, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
-    item = db.query(MediaItem).filter(MediaItem.id == id).first()
+    item = db.query(MediaItem).filter(MediaItem.id == id, MediaItem.user_id == current_user.id).first()
     if item is None:
         raise HTTPException(status_code=404, detail="Media not found")
     if item.type == MediaType.BOOK or item.type == MediaType.GAME:
         new_log = ProgressLog(
             media_item_id=id,
+            user_id=current_user.id,
             progress_time=log.time,
             notes=log.notes,
             date_of_progress=date.today()
@@ -161,7 +162,7 @@ def create_log_entry(id: int, log: ProgressLogData, db: Annotated[Session, Depen
         db.commit()
 
         # add the log towards streak point counting
-        streak = recalculate_streak(db)
+        streak = recalculate_streak(db, current_user)
         db.refresh(new_log)
 
         return {
@@ -176,7 +177,7 @@ def create_log_entry(id: int, log: ProgressLogData, db: Annotated[Session, Depen
 @app.get("/media/{id}/logs")
 def get_media_logs(id: int, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
     # query for the media itself first
-    item = db.query(MediaItem).filter(MediaItem.id == id).first()
+    item = db.query(MediaItem).filter(MediaItem.id == id, MediaItem.id == current_user.id).first()
 
     # if doesn't exist, 404
     if item is None:
@@ -191,7 +192,7 @@ def get_media_logs(id: int, db: Annotated[Session, Depends(get_db)], current_use
 @app.get("/streak")
 def get_streak(db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
     # query for streak
-    streak = db.query(Streak).filter(Streak.id == 1).first()
+    streak = db.query(Streak).filter(Streak.user_id == current_user.id).first()
     if streak is None:
         raise HTTPException(status_code=404, detail="No streak data yet")
     return streak

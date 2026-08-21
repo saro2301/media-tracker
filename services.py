@@ -52,7 +52,7 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Annotate
 # album: query all albums marked completed today. add streak point if at least one was marked completed today
 # match: query all wrestling matches marked completed today. add streak point as needed
 
-def recalculate_streak(db: Session):
+def recalculate_streak(db: Session, current_user: User):
     today = date.today()
     yesterday = today - timedelta(days=1)
     streak_points = 0           # streak points current counter
@@ -60,7 +60,8 @@ def recalculate_streak(db: Session):
     # query books read today, and see if >= 30 mins exceeded
     book_minutes = (db.query(func.sum(ProgressLog.progress_time))
     .join(MediaItem, ProgressLog.media_item_id == MediaItem.id)
-    .filter(MediaItem.type == MediaType.BOOK, ProgressLog.date_of_progress == today)).scalar()
+    .filter(MediaItem.type == MediaType.BOOK, ProgressLog.date_of_progress == today,
+            MediaItem.user_id == current_user.id)).scalar()
 
     if (book_minutes or 0) >= 30:
         streak_points += 1
@@ -68,32 +69,34 @@ def recalculate_streak(db: Session):
     # query games played today, same logic as book
     game_minutes = (db.query(func.sum(ProgressLog.progress_time))
     .join(MediaItem, ProgressLog.media_item_id == MediaItem.id)
-    .filter(MediaItem.type == MediaType.GAME, ProgressLog.date_of_progress == today)).scalar()
+    .filter(MediaItem.type == MediaType.GAME, ProgressLog.date_of_progress == today,
+            MediaItem.user_id == current_user.id)).scalar()
 
     if (game_minutes or 0) >= 30:
         streak_points += 1
 
     # query albums listened to today, and see if >= 1 album completed
     albums_completed = db.query(MediaItem).filter(MediaItem.type == MediaType.ALBUM,
-    MediaItem.status == MediaStatus.COMPLETED, MediaItem.finish_date == today).first()
+    MediaItem.status == MediaStatus.COMPLETED, MediaItem.finish_date == today, MediaItem.user_id == current_user.id).first()
 
     if albums_completed is not None:
         streak_points += 1
 
     # query matches, same thing.
     matches_completed = db.query(MediaItem).filter(MediaItem.type == MediaType.WRESTLING,
-    MediaItem.status == MediaStatus.COMPLETED, MediaItem.finish_date == today ).first()
+    MediaItem.status == MediaStatus.COMPLETED, MediaItem.finish_date == today, MediaItem.user_id == current_user.id).first()
 
     if matches_completed is not None:
         streak_points += 1
 
 
     # STREAK LOGIC:
-    streak = db.query(Streak).filter(Streak.id == 1).first()
+    streak = db.query(Streak).filter(Streak.user_id == current_user.id).first()
 
     # first ever run, need to create the rows.
     if streak is None:
         streak = Streak(
+            user_id=current_user.id,
             current_streak=0,
             longest_streak=0,
             current_streak_start=None,

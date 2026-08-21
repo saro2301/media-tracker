@@ -8,7 +8,9 @@ body:
   content: |-
     {
       "title": "Kazuchika Okada vs Hiroshi Tanahashi - Invasion Attack 2013",
+      "rating": 5,
       "type": "wrestling",
+      "status": "completed",
       "creators": [
         {
           "name": "New Japan Pro Wrestling",
@@ -17,7 +19,8 @@ body:
       ],
       "wrestling_data": {
         "event": "Invasion Attack 2013"
-      }
+      },
+      "finish_date": "2026-01-19"
     }
 auth:
   type: bearer
