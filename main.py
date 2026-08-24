@@ -1,12 +1,17 @@
+from sqlite3 import IntegrityError
+
 from fastapi import FastAPI, Depends, HTTPException
 from database import get_db
 from schemas import Media, MediaUpdate, ProgressLogData, UserCreation, UserLogin
 from typing import Annotated
 from sqlalchemy.orm import Session
-from services import recalculate_streak, hash_password, create_access_token, get_current_user, search_album
+from services import recalculate_streak, hash_password, create_access_token, get_current_user, search_album, SECRET_KEY, create_refresh_token
 from models import MediaItem, MediaType, MediaStatus, Creator, MediaCreator, User, ProgressLog, Streak, Book, Wrestling
 import bcrypt
 from datetime import date
+from jose import jwt, JWTError
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import IntegrityError
 
 app = FastAPI()
 
@@ -14,9 +19,20 @@ app = FastAPI()
 def read_root():
     return {"Hello": "World"}
 
+# Question: how will my backend and my frontend communicate? We need a middleman to link both origins together.
+
+# add middleware. no wildcards as that's big security risk, don't want all possible origins linking to mine.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+)
+
+
 # post endpoint to create a media item by sending the info.
 # NOTE: once external APIs are integrated, change to async.
-@app.post("/media/")
+@app.post("/media")
 def create_media(media: Media, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
 
     # NOTE: media_dict (the Pydantic schema "Media" has fields NOT in MediaItem. unpacking manually, just to be safe.)
@@ -82,7 +98,7 @@ def create_media(media: Media, db: Annotated[Session, Depends(get_db)], current_
 
 # get endpoint to retrieve ALL entries from the database.
 # NOTE: once external APIs are integrated, change to async.
-@app.get("/media/")
+@app.get("/media")
 def get_all_media(db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
     return db.query(MediaItem).filter(MediaItem.user_id == current_user.id).all()
 
@@ -210,7 +226,13 @@ def create_user(user: UserCreation, db: Annotated[Session, Depends(get_db)]):
         password_hash=hashed_password
     )
     db.add(new_user)
-    db.commit()
+    # First, we have to check if the user being registered has a unique email and username.
+    # If not, can register. Need the info to check whether the info is unique
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()           # undoes changes. necessary if an error is raised
+        raise HTTPException(status_code=409, detail="User already exists")
     db.refresh(new_user)
     return {"id": new_user.id, "username": new_user.username, "email": new_user.email}
 
@@ -224,10 +246,32 @@ def user_login(login_data: UserLogin, db: Annotated[Session, Depends(get_db)]):
 
     # create JWT token if password is valid.
     if bcrypt.checkpw(login_data.password.encode('utf-8'), user.password_hash.encode('utf-8')):
-        return create_access_token({"sub" : str(user.id)})
+        return {
+            "access_token": create_access_token({"sub": str(user.id)}),
+            "refresh_token": create_refresh_token({"sub": str(user.id)}),
+        }
     # if not valid, raise password error (as username is valid)
     else:
         raise HTTPException(status_code=401, detail="Incorrect password")
+
+# POST endpoint to refresh a user's access token to keep them logged in.
+@app.get("/refresh")
+def refresh_user_token(refresh_token: str, db: Annotated[Session, Depends(get_db)]):
+    # need to handle possible failure of token being malformed or expired.
+    # attempt to decode via try, if not valid, throw.
+    try:
+        data = jwt.decode(refresh_token, SECRET_KEY, algorithms=["HS256"])
+        # if not a refresh token, raise error.
+        if data.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        user_id = data.get("sub")
+    # raise Unauthorized if decoding failed.
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    return {"access_token": create_access_token({"sub": str(user_id)})}
+
+
 
 # EXTERNAL API ENDPOINTS
 @app.get("/search/album")

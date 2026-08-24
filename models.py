@@ -114,10 +114,11 @@ class Streak(Base):
 
 # User class for user model. Needed for authentication (who are you?).
 # Needs an id, username, email, password (which will be hashed)
+# Username and email must be unique as we can't have two of the same username or email.
 class User(Base):
     __tablename__ = 'user'
     id: Mapped[int] = mapped_column(primary_key=True)
-    username: Mapped[str] = mapped_column()
-    email: Mapped[str] = mapped_column()
+    username: Mapped[str] = mapped_column(unique=True)
+    email: Mapped[str] = mapped_column(unique=True)
     password_hash: Mapped[str] = mapped_column()
 

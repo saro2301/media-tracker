@@ -7,14 +7,16 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Annotated
 from jose import jwt, JWTError
-from fastapi import Depends, FastAPI, HTTPException
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 import bcrypt, os, httpx
 from database import get_db
 
 # JWT ACCESS METHOD
 load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY not set")
 ALGORITHM = "HS256"
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")  # "point people to this url to get their token/access"
@@ -24,6 +26,13 @@ def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + expires_delta
     to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+# create refresh token. need this to handle cases where user is logged in after original JWT expires.
+def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=7)):
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + expires_delta
+    to_encode.update({"exp": expire, "type": "refresh"})        # type "refresh" is just to tell what token type it is
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 # get current user method. doing the inverse of creating the token. REMEMBER: access information is user ID, not username!
@@ -172,7 +181,8 @@ def search_album(album: str, artist: str | None = None):
 
     # now, make a list of what the result is going to consist of
     # we need a title, artist, MusicBrainz ID (for convenience) and a score
-    # the score being measured on a scale of 1-100, how accurate is the album we want?
+    # the score being measured on a scale of 1-100,
+    # how accurate is the album we want?
     results = []
 
     # in case of an internal server error (likely MusicBrainz's rate limit), add a check.

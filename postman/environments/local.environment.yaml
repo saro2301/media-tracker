@@ -2,3 +2,5 @@ name: local
 values:
   - key: token
     value: ''
+  - key: refresh_token
+    value: ''
