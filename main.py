@@ -1,11 +1,9 @@
-from sqlite3 import IntegrityError
-
 from fastapi import FastAPI, Depends, HTTPException
 from database import get_db
 from schemas import Media, MediaUpdate, ProgressLogData, UserCreation, UserLogin
 from typing import Annotated
 from sqlalchemy.orm import Session
-from services import recalculate_streak, hash_password, create_access_token, get_current_user, search_album, SECRET_KEY, create_refresh_token
+from services import recalculate_streak, hash_password, create_access_token, get_current_user, search_album, SECRET_KEY, ALGORITHM, create_refresh_token
 from models import MediaItem, MediaType, MediaStatus, Creator, MediaCreator, User, ProgressLog, Streak, Book, Wrestling
 import bcrypt
 from datetime import date
@@ -14,10 +12,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import IntegrityError
 
 app = FastAPI()
-
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
 
 # Question: how will my backend and my frontend communicate? We need a middleman to link both origins together.
 
@@ -193,7 +187,7 @@ def create_log_entry(id: int, log: ProgressLogData, db: Annotated[Session, Depen
 @app.get("/media/{id}/logs")
 def get_media_logs(id: int, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
     # query for the media itself first
-    item = db.query(MediaItem).filter(MediaItem.id == id, MediaItem.id == current_user.id).first()
+    item = db.query(MediaItem).filter(MediaItem.id == current_user.id).first()
 
     # if doesn't exist, 404
     if item is None:
@@ -260,7 +254,7 @@ def refresh_user_token(refresh_token: str, db: Annotated[Session, Depends(get_db
     # need to handle possible failure of token being malformed or expired.
     # attempt to decode via try, if not valid, throw.
     try:
-        data = jwt.decode(refresh_token, SECRET_KEY, algorithms=["HS256"])
+        data = jwt.decode(refresh_token, SECRET_KEY, ALGORITHM)
         # if not a refresh token, raise error.
         if data.get("type") != "refresh":
             raise HTTPException(status_code=401, detail="Invalid token type")
