@@ -234,3 +234,28 @@ def test_existing_streak_point_two_users(db, user1, user2):
     streak2 = recalculate_streak(db, user2)
 
     assert streak1.current_streak == 2 and streak2.current_streak == 2
+# NINTH TEST: STREAK FROM YESTERDAY SURVIVES A PARTIAL DAY
+# logging less than a full day's points shouldn't wipe a streak that was kept yesterday.
+def test_partial_day_keeps_streak_same_user(db, user1):
+    yesterday = date.today() - timedelta(days=1)
+
+    existing_streak = Streak(
+        id=1,
+        user_id=user1.id,
+        current_streak=5,
+        current_streak_start=yesterday - timedelta(days=4),
+        longest_streak=5,
+        last_updated=yesterday
+    )
+    db.add(existing_streak)
+
+    book = MediaItem(title="Test Book", type=MediaType.BOOK, status=MediaStatus.BACKLOGGED, user_id=user1.id)
+    db.add(book)
+    db.flush()
+
+    db.add(ProgressLog(media_item_id=book.id, progress_time=10, date_of_progress=date.today()))
+    db.commit()
+
+    streak = recalculate_streak(db, user1)
+
+    assert streak.current_streak == 5

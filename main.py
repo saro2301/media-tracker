@@ -1,9 +1,9 @@
 from fastapi import FastAPI, Depends, HTTPException
 from database import get_db
-from schemas import Media, MediaUpdate, ProgressLogData, UserCreation, UserLogin
+from schemas import Media, MediaUpdate, ProgressLogData, UserCreation, UserLogin, RefreshRequest
 from typing import Annotated
 from sqlalchemy.orm import Session
-from services import recalculate_streak, hash_password, create_access_token, get_current_user, search_album, SECRET_KEY, ALGORITHM, create_refresh_token
+from services import recalculate_streak, hash_password, create_access_token, get_current_user, search_album, SECRET_KEY, ALGORITHM, create_refresh_token, DUMMY_PASSWORD_HASH
 from models import MediaItem, MediaType, MediaStatus, Creator, MediaCreator, User, ProgressLog, Streak, Book, Wrestling
 import bcrypt
 from datetime import date
@@ -146,10 +146,13 @@ def delete_data(id: int, db: Annotated[Session, Depends(get_db)], current_user: 
     if item is None:
         raise HTTPException(status_code=404, detail="Media not found")
 
+    # build the response before deleting, as the item can't be read after the commit.
+    deleted = {"id": item.id, "title": item.title}
+
     db.delete(item)
     db.commit()
 
-    return item
+    return deleted
 
 # PROGRESS LOG ENDPOINTS
 
@@ -163,7 +166,6 @@ def create_log_entry(id: int, log: ProgressLogData, db: Annotated[Session, Depen
     if item.type == MediaType.BOOK or item.type == MediaType.GAME:
         new_log = ProgressLog(
             media_item_id=id,
-            user_id=current_user.id,
             progress_time=log.time,
             notes=log.notes,
             date_of_progress=date.today()
@@ -187,7 +189,7 @@ def create_log_entry(id: int, log: ProgressLogData, db: Annotated[Session, Depen
 @app.get("/media/{id}/logs")
 def get_media_logs(id: int, db: Annotated[Session, Depends(get_db)], current_user: Annotated[User, Depends(get_current_user)]):
     # query for the media itself first
-    item = db.query(MediaItem).filter(MediaItem.id == current_user.id).first()
+    item = db.query(MediaItem).filter(MediaItem.id == id, MediaItem.user_id == current_user.id).first()
 
     # if doesn't exist, 404
     if item is None:
@@ -233,28 +235,32 @@ def create_user(user: UserCreation, db: Annotated[Session, Depends(get_db)]):
 # POST endpoint to log in (sending login data to the server)
 @app.post("/login")
 def user_login(login_data: UserLogin, db: Annotated[Session, Depends(get_db)]):
-    # find the user by username. if username doesn't exist, return error.
+    # find the user by username.
     user = db.query(User).filter(User.username == login_data.username).first()
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
 
-    # create JWT token if password is valid.
-    if bcrypt.checkpw(login_data.password.encode('utf-8'), user.password_hash.encode('utf-8')):
-        return {
-            "access_token": create_access_token({"sub": str(user.id)}),
-            "refresh_token": create_refresh_token({"sub": str(user.id)}),
-        }
-    # if not valid, raise password error (as username is valid)
-    else:
-        raise HTTPException(status_code=401, detail="Incorrect password")
+    # check the password against a dummy hash if the user doesn't exist,
+    # so a wrong username takes as long as a wrong password.
+    password_hash = user.password_hash if user else DUMMY_PASSWORD_HASH
+    password_valid = bcrypt.checkpw(login_data.password.encode('utf-8'), password_hash.encode('utf-8'))
+
+    # same error for a wrong username or password, so attackers can't tell which usernames exist.
+    if user is None or not password_valid:
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+
+    # create JWT tokens as the password is valid.
+    return {
+        "access_token": create_access_token({"sub": str(user.id)}),
+        "refresh_token": create_refresh_token({"sub": str(user.id)}),
+    }
 
 # POST endpoint to refresh a user's access token to keep them logged in.
-@app.get("/refresh")
-def refresh_user_token(refresh_token: str, db: Annotated[Session, Depends(get_db)]):
+# token goes in the body, not the URL, so it doesn't end up in server logs.
+@app.post("/refresh")
+def refresh_user_token(refresh_data: RefreshRequest, db: Annotated[Session, Depends(get_db)]):
     # need to handle possible failure of token being malformed or expired.
     # attempt to decode via try, if not valid, throw.
     try:
-        data = jwt.decode(refresh_token, SECRET_KEY, ALGORITHM)
+        data = jwt.decode(refresh_data.refresh_token, SECRET_KEY, ALGORITHM)
         # if not a refresh token, raise error.
         if data.get("type") != "refresh":
             raise HTTPException(status_code=401, detail="Invalid token type")
@@ -263,13 +269,17 @@ def refresh_user_token(refresh_token: str, db: Annotated[Session, Depends(get_db
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
+    # make sure the user still exists before handing out a new token.
+    if db.query(User).filter(User.id == user_id).first() is None:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
     return {"access_token": create_access_token({"sub": str(user_id)})}
 
 
 
 # EXTERNAL API ENDPOINTS
 @app.get("/search/album")
-def search_album_route(album: str, artist: str | None = None):
+def search_album_route(album: str, current_user: Annotated[User, Depends(get_current_user)], artist: str | None = None):
     return search_album(album, artist)
 
 

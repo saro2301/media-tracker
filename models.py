@@ -5,7 +5,7 @@ import enum
 from datetime import date
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy import Enum, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # define base class
 class Base(DeclarativeBase):
@@ -53,6 +53,12 @@ class MediaItem(Base):
     picture: Mapped[str | None] = mapped_column()
     creation_date: Mapped[date | None] = mapped_column()
     finish_date: Mapped[date | None] = mapped_column()
+
+    # child rows that belong to this media. deleting the media deletes these too.
+    book: Mapped[list["Book"]] = relationship(cascade="all, delete-orphan")
+    wrestling: Mapped[list["Wrestling"]] = relationship(cascade="all, delete-orphan")
+    media_creators: Mapped[list["MediaCreator"]] = relationship(cascade="all, delete-orphan")
+    progress_logs: Mapped[list["ProgressLog"]] = relationship(cascade="all, delete-orphan")
 
 # MEDIA TYPE CLASSES
 

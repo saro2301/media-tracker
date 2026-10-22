@@ -43,7 +43,8 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Annotate
         payload = jwt.decode(token, SECRET_KEY, algorithms=ALGORITHM)
         user_id: str = payload.get("sub")
         # proper token, but does "sub" include what is expected? did i get what i wanted out of it?
-        if user_id is None:
+        # refresh tokens can't be used as access tokens, they last much longer.
+        if user_id is None or payload.get("type") == "refresh":
             raise HTTPException(status_code=401, detail="Could not validate credentials")
     except JWTError:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
@@ -142,8 +143,9 @@ def recalculate_streak(db: Session, current_user: User):
             streak.longest_streak = streak.current_streak
             streak.longest_streak_start = streak.current_streak_start
             streak.longest_streak_end = today
-    # if none apply, and if there is no streak at all, then our current streak becomes zero.
-    else:
+    # if not enough points yet, only reset if the streak was last kept before yesterday.
+    # (if kept yesterday or today, the user still has the rest of today to keep it going.)
+    elif streak.last_updated is None or streak.last_updated < yesterday:
         streak.current_streak = 0
 
     # NOTE: only commit here, as adding is just making the rows.
@@ -158,6 +160,9 @@ def hash_password(password: str) -> str:
     hashed_password = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
     return hashed_password.decode("utf-8")      # NOTE: not decoding the password, decoding the HASH (for DB storage). bytes to string
 
+# hash to check passwords against when a username doesn't exist, so login takes the same time either way.
+DUMMY_PASSWORD_HASH = hash_password("not-a-real-password")
+
 # MUSICBRAINZ API ALBUM SEARCH FUNCTION
 # The goal of MusicBrainz API with this app is to:
 # 1. give me experience working with external API's, JSONs and file parsing (very transferrable skill)
@@ -169,16 +174,22 @@ def search_album(album: str, artist: str | None = None):
     search_query = album
     # if we plan on also searching using an artist, search using both.
     if artist:
-        search_query = f'{album} AND artist:"{artist}"'
+        # escape quotes and backslashes so the artist name can't break out of the quoted search term.
+        escaped_artist = artist.replace("\\", "\\\\").replace('"', '\\"')
+        search_query = f'{album} AND artist:"{escaped_artist}"'
 
     # get the album itself that is being searched.
-    response = httpx.get(
-        "https://musicbrainz.org/ws/2/release-group/",
-        params={"query": search_query, "fmt": "json"},         # query is the album being searched, JSON format.
-        headers={"User-Agent": "MediaTracker/1.0 (samrod2301@gmail.com)"}
-    )
-
-    data = response.json()
+    # timeout so a slow MusicBrainz can't hang the request forever.
+    try:
+        response = httpx.get(
+            "https://musicbrainz.org/ws/2/release-group/",
+            params={"query": search_query, "fmt": "json"},         # query is the album being searched, JSON format.
+            headers={"User-Agent": "MediaTracker/1.0 (samrod2301@gmail.com)"},
+            timeout=10,
+        )
+        data = response.json()
+    except (httpx.HTTPError, ValueError):
+        raise HTTPException(status_code=502, detail="Album search is unavailable right now")
 
     # now, make a list of what the result is going to consist of
     # we need a title, artist, MusicBrainz ID (for convenience) and a score

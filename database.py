@@ -20,7 +20,6 @@ def get_db():
     finally:
         db.close()  # session close after yield finishes.
 
-# create the database.
-Base.metadata.create_all(engine)
+# NOTE: tables are created by Alembic migrations (alembic upgrade head), not here.
 
 

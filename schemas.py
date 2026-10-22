@@ -69,4 +69,8 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+# refresh class that holds the refresh token, sent in the body to get a new access token.
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
 
